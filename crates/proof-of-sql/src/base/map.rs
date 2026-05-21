@@ -40,6 +40,37 @@ mod tests {
     }
 
     #[test]
+    fn indexmap_macro_keeps_original_order_when_duplicate_keys_update_values() {
+        let map = indexmap! {
+            "alpha" => 1,
+            "beta" => 2,
+            "alpha" => 3,
+            "gamma" => 4,
+            "beta" => 5,
+        };
+
+        let entries = map
+            .iter()
+            .map(|(key, value)| (*key, *value))
+            .collect::<Vec<_>>();
+        assert_eq!(entries, [("alpha", 3), ("beta", 5), ("gamma", 4)]);
+    }
+
+    #[test]
+    fn indexmap_macro_supports_trailing_comma_form() {
+        let map = indexmap! {
+            "red" => 0xff0000,
+            "green" => 0x00ff00,
+        };
+
+        let entries = map
+            .iter()
+            .map(|(key, value)| (*key, *value))
+            .collect::<Vec<_>>();
+        assert_eq!(entries, [("red", 0xff0000), ("green", 0x00ff00)]);
+    }
+
+    #[test]
     fn indexmap_macro_accepts_empty_input() {
         let map: IndexMap<&str, i32> = indexmap! {};
 

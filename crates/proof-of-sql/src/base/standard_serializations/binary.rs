@@ -105,4 +105,29 @@ mod tests {
             .expect_err("invalid bool discriminant must fail to deserialize");
         assert!(error.to_string().contains("InvalidBooleanValue"));
     }
+
+    #[test]
+    fn deserialization_rejects_truncated_fixed_width_integer() {
+        let mut truncated = Vec::new();
+        truncated.extend_from_slice(&0_u64.to_be_bytes());
+        truncated.push(1);
+        // Only three of the four big-endian i32 payload bytes are present.
+        truncated.extend_from_slice(&[0x01, 0x02, 0x03]);
+
+        let error = try_standard_binary_deserialization::<SerdeTestType>(&truncated)
+            .expect_err("truncated fixed-width i32 must fail to deserialize");
+        assert!(error.to_string().contains("UnexpectedEnd"));
+    }
+
+    #[test]
+    fn deserialization_rejects_truncated_string_payload() {
+        let mut truncated = Vec::new();
+        // Claim a three-byte string but provide only two bytes.
+        truncated.extend_from_slice(&3_u64.to_be_bytes());
+        truncated.extend_from_slice(b"ab");
+
+        let error = try_standard_binary_deserialization::<SerdeTestType>(&truncated)
+            .expect_err("truncated string payload must fail to deserialize");
+        assert!(error.to_string().contains("UnexpectedEnd"));
+    }
 }
