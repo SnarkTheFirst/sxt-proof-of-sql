@@ -149,6 +149,48 @@ fn test_decode_extra_bytes_i64() {
 }
 
 #[test]
+fn bool_varint_accepts_only_zero_and_one() {
+    assert_eq!(false.encode_var_vec(), vec![0]);
+    assert_eq!(true.encode_var_vec(), vec![1]);
+    assert_eq!(bool::decode_var(&[0, 0x99]), Some((false, 1)));
+    assert_eq!(bool::decode_var(&[1, 0x99]), Some((true, 1)));
+
+    assert_eq!(bool::decode_var(&[2]), None);
+    assert_eq!(bool::decode_var(&[0x80]), None);
+}
+
+#[test]
+fn narrow_integer_decoders_reject_values_just_above_their_bounds() {
+    assert_eq!(
+        u8::decode_var(&u8::MAX.encode_var_vec()),
+        Some((u8::MAX, 2))
+    );
+    assert_eq!(u8::decode_var(&256_u16.encode_var_vec()), None);
+
+    assert_eq!(
+        i8::decode_var(&i8::MAX.encode_var_vec()),
+        Some((i8::MAX, 2))
+    );
+    assert_eq!(
+        i8::decode_var(&i8::MIN.encode_var_vec()),
+        Some((i8::MIN, 2))
+    );
+    assert_eq!(i8::decode_var(&128_i16.encode_var_vec()), None);
+    assert_eq!(i8::decode_var(&(-129_i16).encode_var_vec()), None);
+}
+
+#[test]
+fn u128_decoder_rejects_encoded_u256_values_with_high_bits_set() {
+    let value = crate::base::encode::U256::from_words(0, 1);
+    let encoded = value.encode_var_vec();
+
+    let (decoded, consumed) = crate::base::encode::U256::decode_var(&encoded).unwrap();
+    assert!(decoded == value);
+    assert_eq!(consumed, 19);
+    assert_eq!(u128::decode_var(&encoded), None);
+}
+
+#[test]
 fn test_regression_22() {
     let encoded: Vec<u8> = 0x0011_2233_u64.encode_var_vec();
     assert!(i8::decode_var(&encoded).is_none());

@@ -51,4 +51,58 @@ mod tests {
         let reserialized = try_standard_binary_serialization(deserialized).unwrap();
         assert_eq!(serialized, reserialized);
     }
+
+    #[test]
+    fn serialization_uses_fixed_width_big_endian_encoding() {
+        let obj = SerdeTestType {
+            a: "ok".to_string(),
+            b: true,
+            c: 0x0102_0304,
+        };
+
+        let serialized = try_standard_binary_serialization(obj).unwrap();
+        assert_eq!(
+            serialized,
+            vec![
+                // String length as a fixed-width big-endian u64, followed by bytes.
+                0, 0, 0, 0, 0, 0, 0, 2, b'o', b'k',
+                // bool and i32 as fixed-width big-endian bytes.
+                1, 1, 2, 3, 4,
+            ]
+        );
+    }
+
+    #[test]
+    fn deserialization_reports_consumed_bytes_and_leaves_trailing_data() {
+        let obj = SerdeTestType {
+            a: "tail".to_string(),
+            b: false,
+            c: -42,
+        };
+        let mut serialized = try_standard_binary_serialization(obj.clone()).unwrap();
+        let object_len = serialized.len();
+        serialized.extend_from_slice(&[0xde, 0xad, 0xbe, 0xef]);
+
+        let (deserialized, consumed): (SerdeTestType, _) =
+            try_standard_binary_deserialization(&serialized).unwrap();
+
+        assert_eq!(deserialized, obj);
+        assert_eq!(consumed, object_len);
+        assert_eq!(&serialized[consumed..], &[0xde, 0xad, 0xbe, 0xef]);
+    }
+
+    #[test]
+    fn deserialization_rejects_invalid_bool_byte() {
+        let mut encoded_invalid_bool = Vec::new();
+        // Empty string length.
+        encoded_invalid_bool.extend_from_slice(&0_u64.to_be_bytes());
+        // bincode accepts only 0 or 1 for bool.
+        encoded_invalid_bool.push(2);
+        // i32 payload that should not make the invalid bool acceptable.
+        encoded_invalid_bool.extend_from_slice(&7_i32.to_be_bytes());
+
+        let error = try_standard_binary_deserialization::<SerdeTestType>(&encoded_invalid_bool)
+            .expect_err("invalid bool discriminant must fail to deserialize");
+        assert!(error.to_string().contains("InvalidBooleanValue"));
+    }
 }

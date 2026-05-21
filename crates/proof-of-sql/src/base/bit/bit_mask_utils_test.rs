@@ -55,3 +55,27 @@ fn we_can_verify_negative_bit_mask_is_negative_representation() {
     // ASSERT
     assert!(is_negative);
 }
+
+#[test]
+fn zero_bit_mask_sets_only_the_sign_separator_bit() {
+    let bit_mask = make_bit_mask(TestScalar::ZERO);
+
+    assert_eq!(bit_mask, U256::ONE.shl(255));
+    assert!(!is_bit_mask_negative_representation(bit_mask));
+}
+
+#[test]
+fn max_signed_bit_mask_is_still_positive_representation() {
+    let bit_mask = make_bit_mask(TestScalar::MAX_SIGNED);
+
+    assert_eq!(bit_mask, U256::ONE.shl(255) + TestScalar::MAX_SIGNED_U256);
+    assert!(!is_bit_mask_negative_representation(bit_mask));
+}
+
+#[test]
+fn negative_one_bit_mask_is_below_the_sign_separator_bit() {
+    let bit_mask = make_bit_mask(-TestScalar::ONE);
+
+    assert_eq!(bit_mask, U256::ONE.shl(255) - U256::ONE);
+    assert!(is_bit_mask_negative_representation(bit_mask));
+}
